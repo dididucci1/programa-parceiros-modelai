@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model AI - Usuários</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f7fa; color:#333; }
+        .modern-sidebar { width:288px; background:linear-gradient(145deg,#0f766e 0%, #134e4a 100%); box-shadow:0 25px 50px -12px rgba(0,0,0,.25); transition:.3s; position:fixed; inset:0 auto 0 0; height:100vh; display:flex; flex-direction:column; }
+        .modern-sidebar.collapsed { width:80px; }
+        .sidebar-expanded { display:flex; }
+        .modern-sidebar.collapsed .sidebar-expanded, .modern-sidebar.collapsed .sidebar-text { display:none; }
+        .modern-sidebar.collapsed .sidebar-icon { margin-right:0; }
+        .sidebar-item { border-radius:12px; margin:4px 8px; position:relative; overflow:hidden; transition:.3s; }
+        .sidebar-item::before { content:''; position:absolute; inset:0 auto 0 -100%; width:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent); transition:.5s; }
+        .sidebar-item:hover::before { left:100%; }
+        .sidebar-item:hover { background:rgba(20,184,166,.15); transform:translateX(4px); }
+        .sidebar-item.active { background:linear-gradient(135deg,#14b8a6 0%,#0d9488 100%); box-shadow:0 8px 25px rgba(20,184,166,.3); color:#fff!important; }
+        .sidebar-icon { transition:.3s; }
+        .sidebar-item:hover .sidebar-icon { transform:scale(1.1); }
+        .main-content { margin-left:288px; transition:margin-left .3s ease; flex:1; overflow-y:auto; }
+        .main-content.sidebar-collapsed { margin-left:80px; }
+        .header { background:#fff; padding:20px 30px; border-bottom:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,.1); position:relative; }
+        .header h1 { font-size:28px; color:#2d3748; margin-bottom:5px; }
+        .content { padding:30px; }
+        .card { background:#fff; border-radius:14px; padding:24px 28px; box-shadow:0 4px 12px rgba(0,0,0,.06); border:1px solid #e2e8f0; }
+        .form-input, .form-select { width:100%; padding:10px 14px; border:2px solid #e2e8f0; border-radius:8px; font-size:14px; transition:.25s; background:#fff; }
+        .form-input:focus, .form-select:focus { outline:none; border-color:#0d9488; box-shadow:0 0 0 3px rgba(13,148,136,.15); }
+        .btn { display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:14px; padding:10px 18px; border-radius:8px; border:none; cursor:pointer; transition:.25s; }
+        .btn-primary { background:#0d9488; color:#fff; }
+        .btn-primary:hover { background:#0f766e; }
+        .btn-secondary { background:#e2e8f0; color:#374151; }
+        .btn-secondary:hover { background:#cbd5e0; }
+        table { width:100%; border-collapse:separate; border-spacing:0 6px; }
+        th { text-align:left; font-size:12px; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:#475569; padding:8px 12px; }
+        tbody tr { background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.06); transition:.25s; }
+        tbody tr:hover { transform:translateY(-2px); box-shadow:0 6px 18px -4px rgba(0,0,0,.12); }
+        td { padding:10px 12px; font-size:14px; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; }
+        td:first-child { border-left:1px solid #f1f5f9; border-top-left-radius:10px; border-bottom-left-radius:10px; }
+        td:last-child { border-right:1px solid #f1f5f9; border-top-right-radius:10px; border-bottom-right-radius:10px; }
+        .badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:4px 10px; border-radius:999px; letter-spacing:.4px; }
+        .badge-admin { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; }
+        .badge-operador { background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff; }
+        .badge-view { background:linear-gradient(135deg,#64748b,#334155); color:#fff; }
+        .status-ativo { background:#dcfce7; color:#166534; }
+        .status-inativo { background:#fee2e2; color:#991b1b; }
+        .filter-bar input { max-width:260px; }
+        /* Mobile: sidebar off-canvas */
+        @media (max-width:900px){
+            .modern-sidebar { width:80vw; max-width:320px; height:100vh; position:fixed; inset:0 auto 0 0; transform:translateX(-100%); z-index:50; }
+            .modern-sidebar.mobile-open { transform:translateX(0); }
+            .main-content, .main-content.sidebar-collapsed { margin-left:0; }
+        }
+        #sidebarOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:40; }
+        #sidebarOverlay.show { display:block; }
+        .mobile-menu-btn { display:none; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; background:rgba(15,118,110,.08); color:#0f766e; border:1px solid #e2e8f0; }
+        @media (max-width:900px){ .mobile-menu-btn { display:inline-flex; position:absolute; right:16px; top:14px; } }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <!-- Sidebar -->
+    <div id="sidebar" class="modern-sidebar">
+        <div class="p-6 border-b border-teal-700/50 flex items-center justify-between">
+            <div class="sidebar-expanded items-center space-x-3">
+                <img src="./images/image.png" alt="Model AI" class="h-8 object-contain" style="max-height:32px;">
+            </div>
+            <button id="toggleSidebar" class="text-white hover:text-teal-200 p-2 ml-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all">
+                <i class="fas fa-bars text-lg"></i>
+            </button>
+        </div>
+        <nav class="flex-1 p-4">
+            <div class="space-y-2">
+                <a href="index.html" class="sidebar-item flex items-center p-3 text-teal-200 hover:text-white">
+                    <i class="fas fa-edit sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Registrar</span>
+                </a>
+                <a href="cenarios.html" class="sidebar-item flex items-center p-3 text-teal-200 hover:text-white">
+                    <i class="fas fa-eye sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Acompanhar</span>
+                </a>
+                <a href="resultados.html" class="sidebar-item flex items-center p-3 text-teal-200 hover:text-white">
+                    <i class="fas fa-chart-line sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Dashboard</span>
+                </a>
+                <a href="usuarios.html" class="sidebar-item active flex items-center p-3 text-white">
+                    <i class="fas fa-users-cog sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Usuários</span>
+                </a>
+            </div>
+        </nav>
+        <div class="p-5 border-t border-teal-700/50">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-teal-400 rounded-full flex items-center justify-center text-teal-900 font-bold">A</div>
+                <div class="sidebar-expanded flex flex-col">
+                    <div class="text-white font-medium text-sm">Admin</div>
+                    <div class="text-teal-200 text-xs">admin@modelai.com</div>
+                </div>
+                <button class="text-teal-200 hover:text-white ml-auto" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+    </div>
+    <!-- Main -->
+    <div id="mainContent" class="main-content">
+        <div class="header">
+            <h1>Gerenciamento de Usuários</h1>
+            <p>Controle quem pode acessar e quais permissões cada usuário possui.</p>
+            <button id="openSidebarMobile" class="mobile-menu-btn" title="Menu"><i class="fas fa-ellipsis-vertical"></i></button>
+        </div>
+        <div class="content space-y-8">
+            <!-- Cadastro / Edição -->
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2"><i class="fas fa-user-plus text-teal-600"></i> Novo Usuário</h2>
+                <form id="usuarioForm" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div>
+                        <label class="text-sm font-medium text-slate-600 mb-1 block">Nome *</label>
+                        <input required id="nome" type="text" class="form-input" placeholder="Ex: João Silva">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-600 mb-1 block">E-mail *</label>
+                        <input required id="email" type="email" class="form-input" placeholder="email@empresa.com">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-600 mb-1 block">Função *</label>
+                        <select required id="role" class="form-select">
+                            <option value="parceiro" selected>Parceiro</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-600 mb-1 block">Senha Inicial *</label>
+                        <input required id="senha" type="text" class="form-input" placeholder="Gerada ou definida">
+                    </div>
+                    <div class="flex gap-3">
+                        <button type="submit" class="btn btn-primary flex-1" id="salvarBtn"><i class="fas fa-save"></i><span>Salvar</span></button>
+                        <button type="button" class="btn btn-secondary" id="resetBtn" title="Limpar"><i class="fas fa-rotate"></i></button>
+                    </div>
+                    <input type="hidden" id="editId">
+                </form>
+                <p class="text-xs text-slate-500 mt-3">As senhas são armazenadas apenas para demonstração (não usar em produção). Implemente hashing seguro no backend.</p>
+            </div>
+            <!-- Filtros -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="filter-bar flex gap-3 items-center">
+                    <input id="busca" type="text" placeholder="Buscar por nome ou e-mail" class="form-input" />
+                    <select id="filtroRole" class="form-select w-40">
+                        <option value="">Todas Funções</option>
+                        <option value="admin">Admin</option>
+                        <option value="parceiro">Parceiro</option>
+                    </select>
+                    <select id="filtroStatus" class="form-select w-40">
+                        <option value="">Todos Status</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                    </select>
+                </div>
+                <div class="text-sm text-slate-500" id="contador"></div>
+            </div>
+            <!-- Tabela -->
+            <div class="card overflow-x-auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>E-mail</th>
+                            <th>Função</th>
+                            <th>Status</th>
+                            <th>Último Acesso</th>
+                            <th style="width:160px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usuariosTbody"></tbody>
+                </table>
+                <div id="semResultados" class="hidden text-center py-6 text-slate-500 text-sm">Nenhum usuário encontrado.</div>
+            </div>
+        </div>
+    </div>
+    <script src="js/auth.js"></script>
+    <script>
+        // Sidebar toggle: desktop collapse, mobile off-canvas overlay
+        function ensureSidebarOverlay(){
+            let ov = document.getElementById('sidebarOverlay');
+            if(!ov){
+                ov = document.createElement('div');
+                ov.id = 'sidebarOverlay';
+                document.body.appendChild(ov);
+                ov.addEventListener('click', () => {
+                    document.getElementById('sidebar').classList.remove('mobile-open');
+                    ov.classList.remove('show');
+                });
+            }
+            return ov;
+        }
+        document.getElementById('toggleSidebar').addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            const main = document.getElementById('mainContent');
+            if(window.innerWidth <= 900){
+                const ov = ensureSidebarOverlay();
+                const opened = sidebar.classList.toggle('mobile-open');
+                ov.classList.toggle('show', opened);
+            } else {
+                sidebar.classList.toggle('collapsed');
+                main.classList.toggle('sidebar-collapsed');
+            }
+        });
+        const mobileOpenBtn = document.getElementById('openSidebarMobile');
+        if(mobileOpenBtn){
+            mobileOpenBtn.addEventListener('click', function(){
+                const sidebar = document.getElementById('sidebar');
+                const ov = ensureSidebarOverlay();
+                const opened = sidebar.classList.toggle('mobile-open');
+                ov.classList.toggle('show', opened);
+            });
+        }
+        window.addEventListener('resize', ()=>{
+            if(window.innerWidth > 900){
+                const ov = document.getElementById('sidebarOverlay');
+                if(ov) ov.classList.remove('show');
+                document.getElementById('sidebar').classList.remove('mobile-open');
+            }
+        });
+
+        // Utilidades simples
+        const API = '/api';
+        let usuarios = [];
+
+        async function fetchUsuarios() {
+            const res = await fetch(`${API}/usuarios`);
+            usuarios = await res.json();
+        }
+
+        // Renderização
+        function badgeRole(role) {
+            if (role === 'admin') return '<span class="badge badge-admin"><i class="fas fa-shield-alt"></i> Admin</span>';
+            if (role === 'operador') return '<span class="badge badge-operador"><i class="fas fa-gear"></i> Operador</span>';
+            return '<span class="badge badge-view"><i class="fas fa-eye"></i> Visualizador</span>';
+        }
+
+        function badgeStatus(st) { return `<span class="badge ${st==='ativo'?'status-ativo':'status-inativo'}">${st==='ativo'?'Ativo':'Inativo'}</span>`; }
+
+        function filtrar() {
+            const termo = document.getElementById('busca').value.toLowerCase();
+            const role = document.getElementById('filtroRole').value;
+            const status = document.getElementById('filtroStatus').value;
+            return usuarios.filter(u =>
+                (!termo || u.nome.toLowerCase().includes(termo) || u.email.toLowerCase().includes(termo)) &&
+                (!role || u.role === role) &&
+                (!status || u.status === status)
+            );
+        }
+
+        async function render() {
+            if (!usuarios.length) await fetchUsuarios();
+            const list = filtrar();
+            const tbody = document.getElementById('usuariosTbody');
+            tbody.innerHTML = list.map(u => `
+                <tr>
+                    <td>${u.nome}</td>
+                    <td>${u.email}</td>
+                    <td>${badgeRole(u.role)}</td>
+                    <td>${badgeStatus(u.status)}</td>
+                    <td>${u.ultimoAcesso ? new Date(u.ultimoAcesso).toLocaleString('pt-BR') : '-'}</td>
+                    <td class="flex gap-2 py-2">
+                        <button class="btn btn-secondary" title="Editar" onclick="editarUsuario('${u._id}')"><i class="fas fa-pen"></i></button>
+                        <button class="btn btn-secondary" title="Ativar/Inativar" onclick="toggleStatus('${u._id}')"><i class="fas fa-power-off"></i></button>
+                        <button class="btn btn-secondary" title="Remover" onclick="removerUsuario('${u._id}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+            document.getElementById('semResultados').classList.toggle('hidden', list.length !== 0);
+            document.getElementById('contador').textContent = `${list.length} usuário(s) filtrado(s) de ${usuarios.length}`;
+        }
+
+        // CRUD funcs
+        document.getElementById('usuarioForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const idEdicao = document.getElementById('editId').value;
+            const payload = {
+                nome: document.getElementById('nome').value.trim(),
+                email: document.getElementById('email').value.trim().toLowerCase(),
+                role: document.getElementById('role').value,
+                status: 'ativo'
+            };
+            const senhaVal = document.getElementById('senha').value;
+            if (senhaVal && senhaVal.trim() !== '') payload.senha = senhaVal;
+            if (!payload.nome || !payload.email || !payload.senha) return;
+            if (idEdicao) {
+                await fetch(`${API}/usuarios/${idEdicao}`, { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+            } else {
+                const exists = usuarios.some(u => u.email === payload.email);
+                if (exists) { alert('E-mail já cadastrado.'); return; }
+                await fetch(`${API}/usuarios`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+            }
+            await fetchUsuarios(); limparForm(); render();
+        });
+
+        function editarUsuario(id) {
+            const u = usuarios.find(x => x._id === id); if (!u) return;
+            document.getElementById('editId').value = u._id;
+            document.getElementById('nome').value = u.nome;
+            document.getElementById('email').value = u.email;
+            document.getElementById('role').value = u.role;
+            document.getElementById('senha').value = '';
+            document.getElementById('salvarBtn').innerHTML = '<i class="fas fa-save"></i><span>Atualizar</span>';
+            window.scrollTo({ top:0, behavior:'smooth' });
+        }
+        window.editarUsuario = editarUsuario;
+
+        async function toggleStatus(id) {
+            const u = usuarios.find(x => x._id === id); if (!u) return;
+            const novo = { status: u.status === 'ativo' ? 'inativo':'ativo' };
+            await fetch(`${API}/usuarios/${id}`, { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(novo) });
+            await fetchUsuarios(); render();
+        }
+        window.toggleStatus = toggleStatus;
+
+        async function removerUsuario(id) {
+            if (!confirm('Remover este usuário?')) return;
+            await fetch(`${API}/usuarios/${id}`, { method:'DELETE' });
+            await fetchUsuarios(); render();
+        }
+        window.removerUsuario = removerUsuario;
+
+        function limparForm() {
+            document.getElementById('usuarioForm').reset();
+            document.getElementById('editId').value='';
+            document.getElementById('salvarBtn').innerHTML = '<i class="fas fa-save"></i><span>Salvar</span>';
+        }
+        document.getElementById('resetBtn').addEventListener('click', limparForm);
+
+        ['busca','filtroRole','filtroStatus'].forEach(id => document.getElementById(id).addEventListener('input', render));
+
+        // Aguarde DOM pronto para garantir que Auth/fetch wrapper estejam ativos
+        window.addEventListener('DOMContentLoaded', render);
+    </script>
+    
+</body>
+</html>

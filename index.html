@@ -1,0 +1,587 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model AI - Entradas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Modern Sidebar Styles */
+        .modern-sidebar {
+            width: 288px;
+            background: linear-gradient(145deg, #0f766e 0%, #134e4a 100%);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: all 0.3s ease;
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modern-sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar-expanded {
+            display: flex;
+        }
+
+        .modern-sidebar.collapsed .sidebar-expanded {
+            display: none;
+        }
+
+        .modern-sidebar.collapsed .sidebar-text {
+            display: none;
+        }
+
+        .modern-sidebar.collapsed .sidebar-icon {
+            margin-right: 0;
+        }
+
+        .sidebar-item {
+            border-radius: 12px;
+            margin: 4px 8px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .sidebar-item:hover::before {
+            left: 100%;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(20, 184, 166, 0.15);
+            transform: translateX(4px);
+        }
+
+        .sidebar-item.active {
+            background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+            box-shadow: 0 8px 25px rgba(20, 184, 166, 0.3);
+            color: white !important;
+        }
+
+        .sidebar-icon {
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-item:hover .sidebar-icon {
+            transform: scale(1.1);
+        }
+
+        /* Main content adjustment */
+        .main-content {
+            margin-left: 288px;
+            transition: margin-left 0.3s ease;
+            flex: 1;
+            padding: 0;
+            overflow-y: auto;
+        }
+
+        .main-content.sidebar-collapsed {
+            margin-left: 80px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        /* Formulários */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #2d7a7a;
+            box-shadow: 0 0 0 3px rgba(45, 122, 122, 0.1);
+        }
+
+        .form-input.error, .form-select.error, .form-textarea.error {
+            border-color: #e53e3e;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #2d7a7a;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #256767;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        /* Alertas */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert.success {
+            background: #f0fff4;
+            border-color: #22543d;
+            color: #22543d;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            /* Sidebar off-canvas */
+            .modern-sidebar { width:80vw; max-width:320px; height:100vh; position:fixed; top:0; left:0; transform:translateX(-100%); z-index:50; }
+            .modern-sidebar.mobile-open { transform:translateX(0); }
+            .main-content, .main-content.sidebar-collapsed { margin-left:0; }
+        }
+        #sidebarOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:40; }
+        #sidebarOverlay.show { display:block; }
+        .mobile-menu-btn { display:none; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; background:rgba(15,118,110,.08); color:#0f766e; border:1px solid #e2e8f0; }
+        @media (max-width:768px){ .mobile-menu-btn { display:inline-flex; position:absolute; right:16px; top:14px; } }
+        /* Mobile adjustments: hide tips card and collapse grid */
+        @media (max-width:1024px){
+            .tips-card{ display:none !important; }
+            .two-col-grid{ grid-template-columns: 1fr !important; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <!-- Modern Sidebar -->
+    <div id="sidebar" class="modern-sidebar">
+        <!-- Logo Section -->
+        <div class="p-6 border-b border-teal-700/50 flex items-center justify-between">
+            <!-- Estado expandido -->
+            <div class="sidebar-expanded flex items-center space-x-3">
+                <img src="./images/image.png" alt="Model AI" class="h-8 object-contain" style="max-height: 32px;">
+            </div>
+            
+            <!-- Botão toggle -->
+            <button id="toggleSidebar" class="text-white hover:text-teal-200 p-2 ml-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all">
+                <i class="fas fa-bars text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 p-4">
+            <div class="space-y-2">
+                <a href="index.html" class="sidebar-item active flex items-center p-3 text-white">
+                    <i class="fas fa-edit sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Registrar</span>
+                </a>
+                
+                <a href="cenarios.html" class="sidebar-item flex items-center p-3 text-teal-200 hover:text-white">
+                    <i class="fas fa-eye sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Acompanhar</span>
+                </a>
+                
+                <a href="resultados.html" class="sidebar-item flex items-center p-3 text-teal-200 hover:text-white">
+                    <i class="fas fa-chart-line sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Dashboard</span>
+                </a>
+                <a href="usuarios.html" data-admin-only class="sidebar-item flex items-center p-3 text-teal-200 hover:text-white">
+                    <i class="fas fa-users-cog sidebar-icon mr-3 text-lg"></i>
+                    <span class="font-medium sidebar-text">Usuários</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- User Info -->
+        <div class="p-5 border-t border-teal-700/50">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-teal-400 rounded-full flex items-center justify-center text-teal-900 font-bold">
+                    A
+                </div>
+                <div class="sidebar-expanded flex flex-col">
+                    <div class="text-white font-medium text-sm">Admin</div>
+                    <div class="text-teal-200 text-xs">admin@modelai.com</div>
+                </div>
+                <button class="text-teal-200 hover:text-white ml-auto">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="main-content">
+        <div class="header">
+            <h1>Registrar Nova Indicação</h1>
+            <p>Cadastre uma nova indicação e inicie o processo de acompanhamento</p>
+            <button id="openSidebarMobile" class="mobile-menu-btn" title="Menu"><i class="fas fa-ellipsis-vertical"></i></button>
+        </div>
+
+        <div class="content">
+            <!-- Mensagem de Sucesso -->
+            <div class="alert success" id="successMessage" style="display: none;">
+                <span>✅</span>
+                <div>
+                    <strong>Indicação registrada com sucesso!</strong><br>
+                    Redirecionando para a aba de acompanhamento...
+                </div>
+            </div>
+
+            <div class="two-col-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px;">
+                <!-- Formulário Principal -->
+                <div class="card">
+                    <h3 style="margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+                        ✏️ Dados da Indicação
+                    </h3>
+
+                    <form id="indicacaoForm">
+                        <div class="form-group">
+                            <label for="incorporadora">
+                                Nome da Incorporadora <span style="color: #e53e3e;">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="incorporadora" 
+                                name="incorporadora" 
+                                class="form-input"
+                                placeholder="Ex: Construtora ABC Ltda"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contatoNome">
+                                Nome do Representante da Incorporadora <span style="color: #e53e3e;">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="contatoNome" 
+                                name="contatoNome" 
+                                class="form-input"
+                                placeholder="Nome completo do representante"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cargoRepresentante">
+                                Cargo do Representante <span style="color: #e53e3e;">*</span>
+                            </label>
+                            <select 
+                                id="cargoRepresentante" 
+                                name="cargoRepresentante" 
+                                class="form-input"
+                                required
+                            >
+                                <option value="">Selecione o cargo</option>
+                                <option value="Gerente">Gerente</option>
+                                <option value="Diretor">Diretor</option>
+                                <option value="Proprietário">Proprietário</option>
+                                <option value="Outro">Outro</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contatoTelefone">
+                                Telefone do Representante <span style="color: #e53e3e;">*</span>
+                            </label>
+                            <input 
+                                type="tel" 
+                                id="contatoTelefone" 
+                                name="contatoTelefone" 
+                                class="form-input"
+                                placeholder="(47) 99999-9999"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="contatoEmail">E-mail do Representante</label>
+                            <input 
+                                type="email" 
+                                id="contatoEmail" 
+                                name="contatoEmail" 
+                                class="form-input"
+                                placeholder="responsavel@empresa.com"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="servicoInteresse">
+                                Serviço de Interesse <span style="color: #e53e3e;">*</span>
+                            </label>
+                            <select id="servicoInteresse" name="servicoInteresse" class="form-select" required>
+                                <option value="">Selecione o serviço...</option>
+                                <option value="controladoria">Controladoria especializada para incorporadoras e loteadoras</option>
+                                <option value="viabilidade">Elaboração de estudos de viabilidade econômica de empreendimentos</option>
+                                <option value="investidores">Apoio técnico na relação com investidores e fundos</option>
+                                <option value="estruturacao">Estruturação financeira e acompanhamento estratégico</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="observacoes">Observações Adicionais</label>
+                            <textarea 
+                                id="observacoes" 
+                                name="observacoes" 
+                                class="form-textarea"
+                                placeholder="Informações adicionais sobre a empresa, interesse específico, contato prévio, etc..."
+                                rows="4"
+                            ></textarea>
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
+                            <button type="button" onclick="limparFormulario()" class="btn btn-secondary">
+                                🗑️ Limpar Formulário
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                ✅ Registrar Indicação
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Painel Lateral de Ajuda -->
+                <div>
+                    <div class="card tips-card" style="margin-bottom: 20px;">
+                        <h4 style="margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
+                            💡 Dicas de Preenchimento
+                        </h4>
+                        <div style="font-size: 14px; color: #718096; line-height: 1.6;">
+                            <p style="margin-bottom: 12px;"><strong>📋 Campos Obrigatórios:</strong><br>
+                            Nome da incorporadora, nome e telefone do representante, e serviço de interesse são essenciais.</p>
+                            
+                            <p style="margin-bottom: 12px;"><strong>📞 Contato:</strong><br>
+                            Sempre confirme o telefone - é nosso principal meio de contato.</p>
+                            
+                            <p style="margin-bottom: 12px;"><strong>� E-mail:</strong><br>
+                            Campo opcional, mas facilita o primeiro contato.</p>
+                            
+                            <p style="margin: 0;"><strong>📝 Observações:</strong><br>
+                            Quanto mais detalhes, melhor o atendimento!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        const API = '/api';
+        // Função para limpar formulário
+        function limparFormulario() {
+            document.getElementById('indicacaoForm').reset();
+        }
+        // CSS para mobile foi movido para o bloco <style> no topo
+
+        // Validação do formulário
+        document.getElementById('indicacaoForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Validação básica
+            const incorporadora = document.getElementById('incorporadora').value;
+            const contatoNome = document.getElementById('contatoNome').value;
+            const contatoTelefone = document.getElementById('contatoTelefone').value;
+            const servicoInteresse = document.getElementById('servicoInteresse').value;
+            const contatoEmail = document.getElementById('contatoEmail').value;
+            const observacoes = document.getElementById('observacoes').value;
+            const cargoRepresentante = document.getElementById('cargoRepresentante').value;
+            
+            if (!incorporadora || !contatoNome || !contatoTelefone || !servicoInteresse) {
+                alert('Por favor, preencha todos os campos obrigatórios!');
+                return;
+            }
+            
+            // Criar objeto com os dados da indicação
+            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { email: 'admin@modelai.com' };
+            const novaIndicacao = {
+                id: Date.now(), // ID único baseado no timestamp
+                incorporadora: incorporadora,
+                contatoNome: contatoNome,
+                contatoTelefone: contatoTelefone,
+                contatoEmail: contatoEmail,
+                servicoInteresse: servicoInteresse,
+                observacoes: observacoes,
+                cargoRepresentante: cargoRepresentante,
+                status: 'Em Andamento',
+                dataRegistro: new Date().toLocaleDateString('pt-BR'),
+                dataVencimento: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'), // 15 dias a partir de hoje
+                urgencia: 'Média',
+                usuarioEmail: (user.email||'').toLowerCase()
+            };
+            
+            // Enviar ao backend
+            try {
+                await fetch(`${API}/indicacoes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(novaIndicacao)
+                });
+            } catch (err) {
+                alert('Falha ao salvar no servidor. Verifique o backend.');
+                return;
+            }
+            
+            // Mostrar mensagem de sucesso
+            document.getElementById('successMessage').style.display = 'flex';
+            
+            // Redirecionar para aba acompanhar após 2 segundos
+            setTimeout(() => {
+                window.location.href = 'cenarios.html';
+            }, 2000);
+        });
+
+        // Formatação de telefone
+        document.getElementById('contatoTelefone').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 11) {
+                value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else if (value.length >= 6) {
+                value = value.replace(/(\d{2})(\d{4})(\d+)/, '($1) $2-$3');
+            } else if (value.length >= 2) {
+                value = value.replace(/(\d{2})(\d+)/, '($1) $2');
+            }
+            e.target.value = value;
+        });
+
+        // Sidebar toggle functionality (desktop collapse, mobile off-canvas)
+        function ensureSidebarOverlay(){
+            let ov = document.getElementById('sidebarOverlay');
+            if(!ov){
+                ov = document.createElement('div');
+                ov.id = 'sidebarOverlay';
+                document.body.appendChild(ov);
+                ov.addEventListener('click', () => {
+                    document.getElementById('sidebar').classList.remove('mobile-open');
+                    ov.classList.remove('show');
+                });
+            }
+            return ov;
+        }
+        document.getElementById('toggleSidebar').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            if (window.innerWidth <= 768) {
+                const ov = ensureSidebarOverlay();
+                const opened = sidebar.classList.toggle('mobile-open');
+                ov.classList.toggle('show', opened);
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('sidebar-collapsed');
+            }
+        });
+        const mobileOpenBtn = document.getElementById('openSidebarMobile');
+        if(mobileOpenBtn){
+            mobileOpenBtn.addEventListener('click', function(){
+                const sidebar = document.getElementById('sidebar');
+                const ov = ensureSidebarOverlay();
+                const opened = sidebar.classList.toggle('mobile-open');
+                ov.classList.toggle('show', opened);
+            });
+        }
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                const ov = document.getElementById('sidebarOverlay');
+                if (ov) ov.classList.remove('show');
+                document.getElementById('sidebar').classList.remove('mobile-open');
+            }
+        });
+    </script>
+</body>
+</html>
