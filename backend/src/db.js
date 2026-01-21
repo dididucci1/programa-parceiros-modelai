@@ -1,10 +1,8 @@
 const mongoose = require('mongoose');
 
-// Global cache para reutilizar conexão em ambiente serverless
-const globalCache = globalThis.__MONGO_CACHE__ || { conn: null, promise: null };
-globalThis.__MONGO_CACHE__ = globalCache;
+// Conexão mínima e direta usando a URI fornecida via ambiente
+let connection = null;
 
-// Mascara senha na URI para logs
 function maskURI(uri) {
   try {
     return String(uri).replace(/(mongodb(?:\+srv)?:\/\/[^:]+:)[^@]+@/i, '$1***@');
@@ -14,7 +12,7 @@ function maskURI(uri) {
 }
 
 async function connectDB() {
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  const uri = process.env.MONGODB_URI;
   if (!uri) {
     const msg = 'Banco de dados não configurado: defina MONGODB_URI';
     console.error(`[mongo] ${msg}`);
@@ -23,36 +21,26 @@ async function connectDB() {
     throw err;
   }
 
-  if (globalCache.conn) return globalCache.conn;
-  if (!globalCache.promise) {
-    mongoose.set('strictQuery', true);
-    mongoose.set('bufferCommands', false);
+  if (connection && connection.readyState === 1) return connection;
 
-    const start = Date.now();
-    console.log('[mongo] conectando...', maskURI(uri));
-    globalCache.promise = mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 1
-    }).then((mongooseInstance) => {
-      const ms = Date.now() - start;
-      console.log(`[mongo] conectado em ${ms}ms`);
-      return mongooseInstance.connection;
-    }).catch((err) => {
-      console.error(`[mongo] falha ao conectar ${maskURI(uri)}: ${err.message}`);
-      throw err;
-    });
+  mongoose.set('strictQuery', true);
+  mongoose.set('bufferCommands', false);
+  const start = Date.now();
+  console.log('[mongo] conectando...', maskURI(uri));
 
-    const conn = mongoose.connection;
-    conn.on('connected', () => console.log('[mongo] event: connected'));
-    conn.on('disconnected', () => console.warn('[mongo] event: disconnected'));
-    conn.on('error', (err) => console.error('[mongo] event: error', err.message));
-  }
+  connection = await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000
+  }).then(m => {
+    const ms = Date.now() - start;
+    console.log(`[mongo] conectado em ${ms}ms`);
+    return m.connection;
+  }).catch(err => {
+    console.error(`[mongo] falha ao conectar ${maskURI(uri)}: ${err.message}`);
+    throw err;
+  });
 
-  globalCache.conn = await globalCache.promise;
-  return globalCache.conn;
+  return connection;
 }
 
 module.exports = { connectDB };
