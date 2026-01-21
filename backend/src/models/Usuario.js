@@ -6,7 +6,8 @@ const UsuarioSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     role: { type: String, enum: ['admin', 'parceiro'], default: 'parceiro' },
     status: { type: String, enum: ['ativo', 'inativo'], default: 'ativo' },
-    senha: { type: String, required: true }, // Observação: somente para demo
+    // Guardar hash da senha; não selecionar por padrão
+    senha: { type: String, required: true, select: false },
     ultimoAcesso: { type: Date, default: null }
   },
   { timestamps: true }
