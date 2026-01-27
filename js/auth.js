@@ -35,9 +35,11 @@
     const origFetch = window.fetch.bind(window);
     window.fetch = async function(input, init){
       let url = typeof input === 'string' ? input : (input && input.url);
+      const apiBase = (window.API_BASE || '/api');
+      let fullApiBase = apiBase;
+      try { fullApiBase = new URL(apiBase, location.href).href; } catch {}
       const isApi = typeof url === 'string' && (
-        url.startsWith('/api') ||
-        url.startsWith(location.origin + '/api')
+        url.startsWith(apiBase) || url.startsWith(fullApiBase)
       );
       const token = getToken();
       if(isApi && token){
@@ -92,16 +94,20 @@
       });
     }
 
-    // Bind logout on sign-out icon buttons
-    document.querySelectorAll('.modern-sidebar i.fa-sign-out-alt').forEach(icon => {
-      const btn = icon.closest('button');
-      if(btn && !btn.dataset.boundLogout){
-        btn.dataset.boundLogout = '1';
-        btn.addEventListener('click', (e)=>{
-          e.preventDefault();
-          clearAuth();
-          window.location.href = 'login.html';
-        });
+    // Bind logout buttons (door-out or power icons, or [data-logout])
+    const logoutButtons = new Set();
+    document.querySelectorAll('.modern-sidebar [data-logout], .modern-sidebar i.fa-sign-out-alt, .modern-sidebar i.fa-power-off').forEach(el => {
+      const btn = el.closest('button') || el;
+      if(btn && !logoutButtons.has(btn)){
+        logoutButtons.add(btn);
+        if(!btn.dataset.boundLogout){
+          btn.dataset.boundLogout = '1';
+          btn.addEventListener('click', (e)=>{
+            e.preventDefault();
+            clearAuth();
+            window.location.href = 'login.html';
+          });
+        }
       }
     });
   });

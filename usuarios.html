@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Model AI - Usuários</title>
+    <script src="js/config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="js/theme.css">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f5f7fa; color:#333; }
@@ -18,7 +20,7 @@
         .sidebar-item::before { content:''; position:absolute; inset:0 auto 0 -100%; width:100%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent); transition:.5s; }
         .sidebar-item:hover::before { left:100%; }
         .sidebar-item:hover { background:rgba(20,184,166,.15); transform:translateX(4px); }
-        .sidebar-item.active { background:linear-gradient(135deg,#14b8a6 0%,#0d9488 100%); box-shadow:0 8px 25px rgba(20,184,166,.3); color:#fff!important; }
+        .sidebar-item.active { background:#005B4C; box-shadow:none; color:#fff!important; }
         .sidebar-icon { transition:.3s; }
         .sidebar-item:hover .sidebar-icon { transform:scale(1.1); }
         .main-content { margin-left:288px; transition:margin-left .3s ease; flex:1; overflow-y:auto; }
@@ -63,12 +65,12 @@
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
     <!-- Sidebar -->
     <div id="sidebar" class="modern-sidebar">
-        <div class="p-6 border-b border-teal-700/50 flex items-center justify-between">
+        <div class="p-6 border-b border-teal-700/50 sidebar-header">
             <div class="sidebar-expanded items-center space-x-3">
-                <img src="./images/image.png" alt="Model AI" class="h-8 object-contain" style="max-height:32px;">
+                <img src="./images/image.png" alt="Model AI" class="object-contain" style="max-height:40px;">
             </div>
-            <button id="toggleSidebar" class="text-white hover:text-teal-200 p-2 ml-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all">
-                <i class="fas fa-bars text-lg"></i>
+            <button id="toggleSidebar" class="text-white hover:text-teal-200 p-2 rounded-lg transition-all" title="Fechar menu">
+                <i class="fas fa-chevron-left text-lg"></i>
             </button>
         </div>
         <nav class="flex-1 p-4">
@@ -92,13 +94,28 @@
             </div>
         </nav>
         <div class="p-5 border-t border-teal-700/50">
-            <div class="flex items-center space-x-3">
+            <div class="user-card bg-white/10 rounded-2xl px-4 py-3 flex items-center gap-3">
                 <div class="w-10 h-10 bg-teal-400 rounded-full flex items-center justify-center text-teal-900 font-bold">A</div>
                 <div class="sidebar-expanded flex flex-col">
                     <div class="text-white font-medium text-sm">Admin</div>
                     <div class="text-teal-200 text-xs">admin@modelai.com</div>
                 </div>
-                <button class="text-teal-200 hover:text-white ml-auto" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+            <div class="user-actions flex items-center justify-around mt-4">
+                <button id="themeToggle" class="text-teal-200 hover:text-white relative">
+                    <i class="fas fa-moon"></i>
+                    <div class="tooltip-card">
+                        <div class="tooltip-card-title">Dark Mode</div>
+                        <div class="tooltip-card-subtitle">Clique aqui para ativar o modo escuro</div>
+                    </div>
+                </button>
+                <button class="text-teal-200 hover:text-white relative" data-logout>
+                    <i class="fas fa-power-off"></i>
+                    <div class="tooltip-card">
+                        <div class="tooltip-card-title">Sair</div>
+                        <div class="tooltip-card-subtitle">Clique aqui pra sair da plataforma</div>
+                    </div>
+                </button>
             </div>
         </div>
     </div>
@@ -107,7 +124,7 @@
         <div class="header">
             <h1>Gerenciamento de Usuários</h1>
             <p>Controle quem pode acessar e quais permissões cada usuário possui.</p>
-            <button id="openSidebarMobile" class="mobile-menu-btn" title="Menu"><i class="fas fa-ellipsis-vertical"></i></button>
+            <button id="openSidebarMobile" class="mobile-menu-btn" title="Fechar menu"><i class="fas fa-chevron-left"></i></button>
         </div>
         <div class="content space-y-8">
             <!-- Cadastro / Edição -->
@@ -177,7 +194,9 @@
             </div>
         </div>
     </div>
+    <script src="js/theme.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/setup-overlay.js"></script>
     <script>
         // Sidebar toggle: desktop collapse, mobile off-canvas overlay
         function ensureSidebarOverlay(){
@@ -223,7 +242,7 @@
         });
 
         // Utilidades simples
-        const API = '/api';
+        const API = window.API_BASE || '/api';
         let usuarios = [];
 
         async function fetchUsuarios() {

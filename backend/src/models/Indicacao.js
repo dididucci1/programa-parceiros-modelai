@@ -10,6 +10,7 @@ const IndicacaoSchema = new mongoose.Schema(
     servicoInteresse: { type: String, required: true },
     observacoes: { type: String },
     status: { type: String, enum: ['Novo', 'Em Andamento', 'Reunião Agendada', 'Reunião Realizada', 'Fechado', 'Cancelado/Sem resposta'], default: 'Em Andamento' },
+    dataUltimaModificacaoStatus: { type: Date },
     dataRegistro: { type: String },
     dataVencimento: { type: String },
     urgencia: { type: String },

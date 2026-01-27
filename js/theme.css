@@ -1,0 +1,174 @@
+/* Light/Dark theme overrides (non-breaking) */
+:root {
+  --bg-body: #f5f7fa;
+  --text-base: #333;
+  --header-bg: #ffffff;
+  --header-border: #e2e8f0;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --muted: #718096;
+  /* Exact sidebar color */
+  --sidebar-bg: #006655;
+  --sidebar-item-hover: rgba(255, 255, 255, 0.1);
+  --sidebar-item-active: #005B4C;
+}
+
+html[data-theme="dark"] {
+  --bg-body: #000000;
+  --text-base: #ffffff;
+  --header-bg: #0a0a0a;
+  --header-border: #1a1a1a;
+  --card-bg: #0a0a0a;
+  --card-border: #1a1a1a;
+  --muted: #a0a0a0;
+  --sidebar-bg: #004d44;
+  --sidebar-item-hover: rgba(255, 255, 255, 0.15);
+  --sidebar-item-active: #003d34;
+}
+
+html[data-theme="dark"] body { background-color: var(--bg-body) !important; color: var(--text-base) !important; }
+html[data-theme="dark"] .container { background-color: var(--bg-body) !important; }
+html[data-theme="dark"] .content { background-color: var(--bg-body) !important; color: var(--text-base) !important; }
+html[data-theme="dark"] .main-content { background-color: var(--bg-body) !important; }
+html[data-theme="dark"] .header { background: var(--header-bg) !important; border-bottom-color: var(--header-border) !important; }
+html[data-theme="dark"] .header h1 { color: var(--text-base) !important; }
+html[data-theme="dark"] .header p { color: var(--muted) !important; }
+html[data-theme="dark"] .content > h2, 
+html[data-theme="dark"] .content > h3, 
+html[data-theme="dark"] .content > h4 { color: var(--text-base) !important; }
+html[data-theme="dark"] .content > div > h2 { color: var(--text-base) !important; }
+html[data-theme="dark"] .card { background: var(--card-bg) !important; border-color: var(--card-border) !important; }
+html[data-theme="dark"] .modal-content { background: var(--card-bg) !important; border-color: var(--card-border) !important; color: var(--text-base) !important; }
+html[data-theme="dark"] .table th { background: #0a0a0a !important; color: var(--text-base) !important; }
+html[data-theme="dark"] .table td { color: var(--text-base) !important; }
+html[data-theme="dark"] .table tbody tr:hover { background: #151515 !important; }
+html[data-theme="dark"] select { background: #000000 !important; color: var(--text-base) !important; border-color: #2a2a2a !important; }
+html[data-theme="dark"] #indicacoesContainer { background-color: var(--bg-body) !important; }
+
+/* Inputs */
+html[data-theme="dark"] .form-input,
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] .form-textarea { background: #000000 !important; color: var(--text-base) !important; border-color: #2a2a2a !important; }
+html[data-theme="dark"] .form-input::placeholder { color: #6a6a6a !important; }
+html[data-theme="dark"] .form-input:focus,
+html[data-theme="dark"] .form-select:focus,
+html[data-theme="dark"] .form-textarea:focus { border-color: #0d9488 !important; box-shadow: 0 0 0 3px rgba(13,148,136,.20) !important; }
+
+/* Sidebar */
+.modern-sidebar { background: var(--sidebar-bg) !important; }
+html[data-theme="dark"] .modern-sidebar { background: var(--sidebar-bg) !important; }
+.sidebar-item:hover { background: var(--sidebar-item-hover) !important; }
+.sidebar-item.active { background: var(--sidebar-item-active) !important; }
+/* Muted text */
+html[data-theme="dark"] .text-muted, html[data-theme="dark"] .header p { color: var(--muted) !important; }
+html[data-theme="dark"] label { color: var(--text-base) !important; }
+/* Collapsed sidebar layout (shared across pages) */
+.modern-sidebar.collapsed { width: 90px !important; }
+.modern-sidebar.collapsed nav .sidebar-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+  margin: 0;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.modern-sidebar.collapsed .sidebar-item .sidebar-icon {
+  margin: 0 !important;
+  width: auto; height: auto;
+  background: transparent;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.modern-sidebar.collapsed .sidebar-item.active .sidebar-icon,
+.modern-sidebar.collapsed .sidebar-item:hover .sidebar-icon {
+  background: transparent;
+}
+
+/* User section and actions at the bottom */
+.modern-sidebar .user-card { }
+.modern-sidebar .user-actions { display: flex; gap: 16px; justify-content: space-around; }
+.modern-sidebar .user-actions button { width: auto; height: auto; border-radius: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; }
+.modern-sidebar .user-actions button:hover { background: transparent; opacity: .9; }
+.modern-sidebar .user-actions i { font-size: 18px; }
+.modern-sidebar.collapsed .user-card { display: none; }
+.modern-sidebar.collapsed .user-actions { flex-direction: column; align-items: center; gap: 24px; padding: 20px 0; }
+
+/* Sidebar header: center logo, keep toggle at right */
+.modern-sidebar .sidebar-header { position: relative; display:flex; align-items:center; justify-content:center; }
+.modern-sidebar .sidebar-header .sidebar-expanded { margin: 0 auto; }
+.modern-sidebar .sidebar-header #toggleSidebar { position: absolute; right: 16px; }
+
+/* When collapsed, center the chevron button */
+.modern-sidebar.collapsed .sidebar-header { justify-content: center; }
+.modern-sidebar.collapsed .sidebar-header #toggleSidebar { position: static; }
+
+/* Smaller chevron icon for menu toggles */
+.mobile-menu-btn i,
+.modern-sidebar .sidebar-header #toggleSidebar i { font-size: 12px !important; }
+
+/* Item padding/radius to match reference */
+.modern-sidebar .sidebar-item { border-radius: 24px !important; padding: 12px 18px !important; }
+
+/* Tooltip card styles */
+.tooltip-card {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 1000;
+  min-width: 200px;
+  white-space: normal;
+}
+
+.tooltip-card::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: white;
+}
+
+.tooltip-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1a202c;
+  margin-bottom: 4px;
+}
+
+.tooltip-card-subtitle {
+  font-size: 12px;
+  color: #718096;
+  line-height: 1.4;
+}
+
+html[data-theme="dark"] .tooltip-card {
+  background: #1a2634;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="dark"] .tooltip-card::after {
+  border-top-color: #1a2634;
+}
+
+html[data-theme="dark"] .tooltip-card-title {
+  color: #e5e7eb;
+}
+
+html[data-theme="dark"] .tooltip-card-subtitle {
+  color: #94a3b8;
+}
+
+button:hover .tooltip-card {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-12px);
+}

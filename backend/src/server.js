@@ -13,6 +13,39 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 app.use(cors());
 app.use(express.json());
 
+// Função para verificar e cancelar indicações em "Reunião Realizada" há mais de 3 meses
+async function verificarReuniaoRealizadaExpirada() {
+  try {
+    const treseMesesAtras = new Date();
+    treseMesesAtras.setMonth(treseMesesAtras.getMonth() - 3);
+
+    const result = await Indicacao.updateMany(
+      {
+        status: 'Reunião Realizada',
+        dataUltimaModificacaoStatus: { $lte: treseMesesAtras }
+      },
+      {
+        $set: { 
+          status: 'Cancelado/Sem resposta',
+          dataUltimaModificacaoStatus: new Date()
+        }
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      console.log(`[auto-cancel] ${result.modifiedCount} indicações movidas de "Reunião Realizada" para "Cancelado/Sem resposta"`);
+    }
+  } catch (err) {
+    console.error('[auto-cancel] Erro ao verificar indicações expiradas:', err.message);
+  }
+}
+
+// Executar verificação a cada 1 hora (3600000ms)
+setInterval(verificarReuniaoRealizadaExpirada, 3600000);
+
+// Executar verificação ao iniciar o servidor
+setTimeout(verificarReuniaoRealizadaExpirada, 5000);
+
 // Middleware: garante conexão ativa apenas para rotas da API
 app.use('/api', async (req, res, next) => {
   try {
@@ -62,6 +95,23 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// Bloqueio de acesso até concluir o setup inicial (troca de senha + termo)
+async function requireSetupCompleted(req, res, next) {
+  try {
+    const isAdmin = String(req.user.role || '').toLowerCase() === 'admin';
+    if (isAdmin) return next();
+    const user = await Usuario.findById(req.user.id).select('primeiraSenha termoAceite').lean();
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    // Bloqueia se não estiver explicitamente concluído (primeiraSenha=false e termoAceite=true)
+    if (user.primeiraSenha !== false || user.termoAceite !== true) {
+      return res.status(403).json({ error: 'SetupRequired', message: 'Troque a senha e aceite o termo para acessar.' });
+    }
+    next();
+  } catch (err) {
+    return res.status(400).json({ error: 'Não foi possível validar o acesso' });
+  }
+}
+
 // Rate limit simples para login (IP+email)
 const loginAttempts = new Map();
 const MAX_ATTEMPTS = 5;
@@ -89,7 +139,7 @@ app.post('/api/usuarios', authRequired, requireAdmin, async (req, res) => {
   try {
     const { nome, email, role = 'parceiro', senha, status = 'ativo' } = req.body;
     const hashed = senha ? await bcrypt.hash(String(senha), 10) : undefined;
-    const created = await Usuario.create({ nome, email, role, senha: hashed, status });
+    const created = await Usuario.create({ nome, email, role, senha: hashed, status, primeiraSenha: true, termoAceite: false });
     const { senha: _, ...safe } = created.toObject();
     res.status(201).json(safe);
   } catch (err) {
@@ -147,15 +197,39 @@ app.post('/api/auth/login', async (req, res) => {
 
     const payload = { id: String(user._id), email: user.email, role: user.role };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
-    const safeUser = { id: user._id, nome: user.nome, email: user.email, role: user.role, status: user.status };
+    const safeUser = { id: user._id, nome: user.nome, email: user.email, role: user.role, status: user.status, primeiraSenha: !!user.primeiraSenha, termoAceite: !!user.termoAceite };
     res.json({ token, user: safeUser });
   } catch (err) {
     res.status(400).json({ error: 'Não foi possível processar o login' });
   }
 });
 
+// Setup inicial: troca de senha + aceite de termo
+app.post('/api/auth/setup-inicial', authRequired, async (req, res) => {
+  try {
+    const { novaSenha, aceitouTermo } = req.body || {};
+    if (!novaSenha || String(novaSenha).length < 6) {
+      return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
+    }
+    if (!aceitouTermo) {
+      return res.status(400).json({ error: 'É necessário aceitar o termo de confidencialidade' });
+    }
+    const user = await Usuario.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    user.senha = await bcrypt.hash(String(novaSenha), 10);
+    user.primeiraSenha = false;
+    user.termoAceite = true;
+    user.dataAceiteTermo = new Date();
+    await user.save();
+    const safeUser = { id: user._id, nome: user.nome, email: user.email, role: user.role, status: user.status, primeiraSenha: false, termoAceite: true };
+    res.json({ ok: true, user: safeUser });
+  } catch (err) {
+    res.status(400).json({ error: 'Não foi possível concluir o setup inicial' });
+  }
+});
+
 // Indicações
-app.get('/api/indicacoes', authRequired, async (req, res) => {
+app.get('/api/indicacoes', authRequired, requireSetupCompleted, async (req, res) => {
   const { userEmail } = req.query;
   const filter = {};
   const isAdmin = String(req.user.role || '').toLowerCase() === 'admin';
@@ -168,7 +242,7 @@ app.get('/api/indicacoes', authRequired, async (req, res) => {
   res.json(list);
 });
 
-app.post('/api/indicacoes', authRequired, async (req, res) => {
+app.post('/api/indicacoes', authRequired, requireSetupCompleted, async (req, res) => {
   try {
     const body = req.body || {};
     const isAdmin = String(req.user.role || '').toLowerCase() === 'admin';
@@ -177,6 +251,8 @@ app.post('/api/indicacoes', authRequired, async (req, res) => {
     } else if (body.usuarioEmail) {
       body.usuarioEmail = String(body.usuarioEmail).toLowerCase();
     }
+    // Define a data de modificação do status na criação
+    body.dataUltimaModificacaoStatus = new Date();
     const created = await Indicacao.create(body);
     res.status(201).json(created);
   } catch (err) {
@@ -189,8 +265,16 @@ app.post('/api/indicacoes', authRequired, async (req, res) => {
 
 app.put('/api/indicacoes/:id', authRequired, requireAdmin, async (req, res) => {
   try {
-    const updated = await Indicacao.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updated) return res.status(404).json({ error: 'Not found' });
+    const body = req.body || {};
+    const current = await Indicacao.findById(req.params.id);
+    if (!current) return res.status(404).json({ error: 'Not found' });
+    
+    // Se o status foi alterado, atualiza a data de modificação
+    if (body.status && body.status !== current.status) {
+      body.dataUltimaModificacaoStatus = new Date();
+    }
+    
+    const updated = await Indicacao.findByIdAndUpdate(req.params.id, body, { new: true });
     res.json(updated);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -204,6 +288,19 @@ app.delete('/api/indicacoes/:id', authRequired, requireAdmin, async (req, res) =
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Migração: adicionar dataUltimaModificacaoStatus para indicações antigas
+app.post('/api/indicacoes/migrate-status-date', authRequired, requireAdmin, async (req, res) => {
+  try {
+    const result = await Indicacao.updateMany(
+      { dataUltimaModificacaoStatus: { $exists: false } },
+      { $set: { dataUltimaModificacaoStatus: new Date() } }
+    );
+    res.json({ ok: true, modified: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

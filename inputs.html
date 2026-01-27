@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="js/theme.css">
     <style>
         * {
             margin: 0;
@@ -89,8 +90,8 @@
         }
 
         .sidebar-item.active {
-            background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
-            box-shadow: 0 8px 25px rgba(20, 184, 166, 0.3);
+            background: #005B4C;
+            box-shadow: none;
             color: white !important;
         }
 
@@ -250,15 +251,12 @@
     <!-- Modern Sidebar -->
     <div id="sidebar" class="modern-sidebar">
         <!-- Logo Section -->
-        <div class="p-6 border-b border-teal-700/50 flex items-center justify-between">
-            <!-- Estado expandido -->
+        <div class="p-6 border-b border-teal-700/50 sidebar-header">
             <div class="sidebar-expanded flex items-center space-x-3">
-                <img src="./images/image.png" alt="Model AI" class="h-8 object-contain" style="max-height: 32px;">
+                <img src="./images/image.png" alt="Model AI" class="object-contain" style="max-height: 40px;">
             </div>
-            
-            <!-- Botão toggle -->
-            <button id="toggleSidebar" class="text-white hover:text-teal-200 p-2 ml-2 bg-white/10 rounded-lg hover:bg-white/20 transition-all">
-                <i class="fas fa-bars text-lg"></i>
+            <button id="toggleSidebar" class="text-white hover:text-teal-200 p-2 rounded-lg transition-all" title="Fechar menu">
+                <i class="fas fa-chevron-left text-lg"></i>
             </button>
         </div>
 
@@ -288,16 +286,27 @@
 
         <!-- User Info -->
         <div class="p-5 border-t border-teal-700/50">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-teal-400 rounded-full flex items-center justify-center text-teal-900 font-bold">
-                    A
-                </div>
-                <div class="sidebar-expanded">
+            <div class="user-card bg-white/10 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <div class="w-10 h-10 bg-teal-400 rounded-full flex items-center justify-center text-teal-900 font-bold">A</div>
+                <div class="sidebar-expanded flex flex-col">
                     <div class="text-white font-medium text-sm">Admin</div>
                     <div class="text-teal-200 text-xs">admin@modelai.com</div>
                 </div>
-                <button class="text-teal-200 hover:text-white ml-auto">
-                    <i class="fas fa-sign-out-alt"></i>
+            </div>
+            <div class="user-actions flex items-center justify-around mt-4">
+                <button id="themeToggle" class="text-teal-200 hover:text-white relative">
+                    <i class="fas fa-moon"></i>
+                    <div class="tooltip-card">
+                        <div class="tooltip-card-title">Dark Mode</div>
+                        <div class="tooltip-card-subtitle">Clique aqui para ativar o modo escuro</div>
+                    </div>
+                </button>
+                <button class="text-teal-200 hover:text-white relative" data-logout>
+                    <i class="fas fa-power-off"></i>
+                    <div class="tooltip-card">
+                        <div class="tooltip-card-title">Sair</div>
+                        <div class="tooltip-card-subtitle">Clique aqui pra sair da plataforma</div>
+                    </div>
                 </button>
             </div>
         </div>
@@ -306,7 +315,7 @@
     <!-- Main Content -->
     <div id="mainContent" class="main-content">
         <div class="header">
-            <button id="openSidebarMobile" class="mobile-menu-btn" title="Menu"><i class="fas fa-ellipsis-vertical"></i></button>
+            <button id="openSidebarMobile" class="mobile-menu-btn" title="Fechar menu"><i class="fas fa-chevron-left"></i></button>
             <h1>Registrar Nova Indicação</h1>
             <p>Cadastre uma nova indicação e inicie o processo de acompanhamento</p>
         </div>
@@ -443,8 +452,10 @@
         </div>
     </div>
 
+    <script src="js/config.js"></script>
+    <script src="js/theme.js"></script>
     <script>
-        const API = '/api';
+        const API = window.API_BASE || '/api';
         // Função para limpar formulário
         function limparFormulario() {
             document.getElementById('indicacaoForm').reset();
@@ -563,5 +574,6 @@
         });
     </script>
     <script src="js/auth.js"></script>
+    <script src="js/setup-overlay.js"></script>
 </body>
 </html>
