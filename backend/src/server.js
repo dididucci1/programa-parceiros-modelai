@@ -263,17 +263,27 @@ app.post('/api/indicacoes', authRequired, requireSetupCompleted, async (req, res
   }
 });
 
-app.put('/api/indicacoes/:id', authRequired, requireAdmin, async (req, res) => {
+app.put('/api/indicacoes/:id', authRequired, async (req, res) => {
   try {
     const body = req.body || {};
     const current = await Indicacao.findById(req.params.id);
     if (!current) return res.status(404).json({ error: 'Not found' });
-    
+
+    const isAdmin = String(req.user.role || '').toLowerCase() === 'admin';
+    const isOwner = String(current.usuarioEmail || '').toLowerCase() === String(req.user.email || '').toLowerCase();
+
+    // Parceiro só pode alterar o campo 'oculta' de suas próprias indicações
+    const keys = Object.keys(body || {});
+    const onlyOcultaChange = keys.length === 1 && keys[0] === 'oculta';
+    if (!isAdmin && !(isOwner && onlyOcultaChange)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     // Se o status foi alterado, atualiza a data de modificação
     if (body.status && body.status !== current.status) {
       body.dataUltimaModificacaoStatus = new Date();
     }
-    
+
     const updated = await Indicacao.findByIdAndUpdate(req.params.id, body, { new: true });
     res.json(updated);
   } catch (err) {

@@ -9,7 +9,7 @@ const IndicacaoSchema = new mongoose.Schema(
     contatoEmail: { type: String },
     servicoInteresse: { type: String, required: true },
     observacoes: { type: String },
-    status: { type: String, enum: ['Novo', 'Em Andamento', 'Reunião Agendada', 'Reunião Realizada', 'Fechado', 'Cancelado/Sem resposta'], default: 'Em Andamento' },
+    status: { type: String, enum: ['Novo', 'Em Análise', 'Em Andamento', 'Reunião Agendada', 'Reunião Realizada', 'Fechado', 'Cancelado/Sem resposta', 'Lead Já Cadastrado'], default: 'Em Andamento' },
     dataUltimaModificacaoStatus: { type: Date },
     dataRegistro: { type: String },
     dataVencimento: { type: String },
@@ -17,6 +17,7 @@ const IndicacaoSchema = new mongoose.Schema(
     valorComissao: { type: Number },
     prazoComissao: { type: Number },
     pagamentos: [{ type: Date }],
+    oculta: { type: Boolean, default: false, index: true },
     usuarioEmail: { type: String, index: true },
     usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario' }
   },
