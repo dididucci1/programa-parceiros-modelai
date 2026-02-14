@@ -548,13 +548,19 @@
 
             <!-- Gráfico de Projeção de Recebimentos -->
             <div class="card">
-                <div id="projecaoHeader" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div id="projecaoHeader" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px;">
                     <select id="filtroEmpresaProjecao" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #4a5568; font-size: 14px; min-width: 200px;">
-                        <option value="">Todas as empresas</option>
+                        <option value="">Todos os parceiros</option>
                     </select>
-                    <h3 style="display: flex; align-items: center; gap: 10px; margin: 0;">
-                        📈 Projeção de Recebimento de Comissões
-                    </h3>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <h3 style="display: flex; align-items: center; gap: 10px; margin: 0;">
+                            📈 Projeção de Recebimento de Comissões
+                        </h3>
+                        <button id="btnExportarPDF" class="btn btn-secondary" onclick="gerarRelatorioPDF()" title="Gerar relatório em PDF" style="padding:8px 12px; border:1px solid #ef4444; border-radius:8px; background:#ef4444; color:#ffffff; display:flex; align-items:center; gap:6px; box-shadow: 0 2px 6px rgba(239,68,68,0.35);">
+                            <i class="fas fa-file-pdf"></i>
+                            <span class="btn-label">Exportar PDF</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="chart-scroll">
                     <div class="chart-scroll-inner">
@@ -584,6 +590,25 @@
     <script src="js/theme.js"></script>
     <script>
         const API = window.API_BASE || '/api';
+        // Cache de indicações para reduzir requisições e acelerar o carregamento
+        let INDICACOES_CACHE = null;
+        let INDICACOES_CACHE_AT = 0;
+        async function getIndicacoes(force = false){
+            const now = Date.now();
+            const TTL_MS = 15000; // 15s de validade do cache
+            if(!force && INDICACOES_CACHE && (now - INDICACOES_CACHE_AT) < TTL_MS){
+                return INDICACOES_CACHE;
+            }
+            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
+            const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
+            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
+            const res = await fetch(`${API}/indicacoes${query}`);
+            const indicacoes = await res.json();
+            INDICACOES_CACHE = indicacoes || [];
+            INDICACOES_CACHE_AT = Date.now();
+            return INDICACOES_CACHE;
+        }
+        function invalidateIndicacoes(){ INDICACOES_CACHE = null; INDICACOES_CACHE_AT = 0; }
         // Sidebar toggle functionality (desktop collapse, mobile off-canvas)
         function ensureSidebarOverlay(){
             let ov = document.getElementById('sidebarOverlay');
@@ -651,26 +676,22 @@
 
         // Configurar filtro de empresas para projeção
         async function configurarFiltroProjecao() {
-            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
-            const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
-            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
-            const res = await fetch(`${API}/indicacoes${query}`);
-            const indicacoes = await res.json();
-            const empresas = [...new Set(indicacoes
+            const indicacoes = await getIndicacoes();
+            const parceiros = [...new Set(indicacoes
                 .filter(i => i.status === 'Fechado' && i.valorComissao && i.prazoComissao)
-                .map(i => i.incorporadora)
+                .map(i => (i.usuarioNome || i.usuarioEmail))
             )].sort();
 
             const filtro = document.getElementById('filtroEmpresaProjecao');
             
             // Limpar opções existentes (exceto "Todas as empresas")
-            filtro.innerHTML = '<option value="">Todas as empresas</option>';
+            filtro.innerHTML = '<option value="">Todos os parceiros</option>';
             
             // Adicionar empresas ao filtro
-            empresas.forEach(empresa => {
+            parceiros.forEach(parceiro => {
                 const option = document.createElement('option');
-                option.value = empresa;
-                option.textContent = empresa;
+                option.value = parceiro;
+                option.textContent = parceiro;
                 filtro.appendChild(option);
             });
 
@@ -693,11 +714,7 @@
 
         // Carregar estatísticas do dashboard
         async function carregarEstatisticasDashboard() {
-            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
-            const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
-            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
-            const res = await fetch(`${API}/indicacoes${query}`);
-            const indicacoes = await res.json();
+            const indicacoes = await getIndicacoes();
             
             const total = indicacoes.length;
             const fechadas = indicacoes.filter(i => i.status === 'Fechado').length;
@@ -730,8 +747,7 @@
             const data = document.getElementById('dataPagamento').value;
             if(!data){ alert('Selecione a data do pagamento.'); return; }
             // Buscar a indicação atual para validar quantidade
-            const res = await fetch(`${API}/indicacoes`);
-            const todos = await res.json();
+            const todos = await getIndicacoes(true);
             const ind = todos.find(i => i._id === pagandoId);
             if(!ind){ alert('Indicação não encontrada.'); return; }
             const pagos = (ind.pagamentos || []).length;
@@ -739,6 +755,7 @@
             if(total && pagos >= total){ alert('Todos os meses já foram registrados como pagos.'); return; }
             const novos = [...(ind.pagamentos||[]), data];
             await fetch(`${API}/indicacoes/${pagandoId}`, { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ pagamentos: novos }) });
+            invalidateIndicacoes();
             fecharModalPagamento();
             carregarTabelaComissoes();
             carregarGraficoProjecaoComissoes(document.getElementById('filtroEmpresaProjecao').value||'');
@@ -749,25 +766,22 @@
             if(!id) return;
             const confirmar = confirm('Remover o último pagamento registrado?');
             if(!confirmar) return;
-            const res = await fetch(`${API}/indicacoes`);
-            const todos = await res.json();
+            const todos = await getIndicacoes(true);
             const ind = todos.find(i => i._id === id);
             if(!ind){ alert('Indicação não encontrada.'); return; }
             const pagamentos = [...(ind.pagamentos||[])];
             if(pagamentos.length === 0){ alert('Não há pagamentos para desfazer.'); return; }
             pagamentos.pop();
             await fetch(`${API}/indicacoes/${id}`, { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ pagamentos }) });
+            invalidateIndicacoes();
             carregarTabelaComissoes();
             carregarGraficoProjecaoComissoes(document.getElementById('filtroEmpresaProjecao').value||'');
         }
 
         // Carregar tabela de comissões
         async function carregarTabelaComissoes() {
-            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
             const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
-            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
-            const res = await fetch(`${API}/indicacoes${query}`);
-            const indicacoes = await res.json();
+            const indicacoes = await getIndicacoes();
             const indicacoesFechadas = indicacoes
                 .filter(i => i.status === 'Fechado' && i.valorComissao)
                 .sort((a, b) => new Date(b.dataRegistro.split('/').reverse().join('-')) - new Date(a.dataRegistro.split('/').reverse().join('-')))
@@ -806,15 +820,11 @@
 
         // Carregar resumo mensal
         async function carregarResumoMensal() {
-            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
-            const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
-            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
-            const res = await fetch(`${API}/indicacoes${query}`);
-            const indicacoes = await res.json();
+            const indicacoes = await getIndicacoes();
             
             const total = indicacoes.length;
             const fechadas = indicacoes.filter(i => i.status === 'Fechado').length;
-            const andamento = indicacoes.filter(i => ['Em Andamento','Reunião Agendada','Reunião Realizada'].includes(i.status)).length;
+            const andamento = indicacoes.filter(i => ['Em Análise','Em Andamento','Reunião Agendada','Reunião Realizada'].includes(i.status)).length;
             const comissaoTotal = indicacoes
                 .filter(i => i.status === 'Fechado' && i.valorComissao && i.prazoComissao)
                 .reduce((sum, i) => sum + (parseFloat(i.valorComissao) * parseInt(i.prazoComissao)), 0);
@@ -826,12 +836,8 @@
         }
 
         async function carregarGraficoMaioresComissoes() {
-            // Buscar indicações fechadas com comissão do backend
-            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
-            const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
-            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
-            const res = await fetch(`${API}/indicacoes${query}`);
-            const indicacoes = await res.json();
+            // Buscar indicações fechadas com comissão do backend (cache)
+            const indicacoes = await getIndicacoes();
             const indicacoesFechadas = indicacoes
                 .filter(i => i.status === 'Fechado' && i.valorComissao && i.prazoComissao && i.valorComissao > 0)
                 .map(i => ({
@@ -907,11 +913,7 @@
 
         // Função para carregar gráfico de projeção de comissões
         async function carregarGraficoProjecaoComissoes(empresaFiltro = '') {
-            const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
-            const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
-            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
-            const res = await fetch(`${API}/indicacoes${query}`);
-            const indicacoes = await res.json();
+            const indicacoes = await getIndicacoes();
             let indicacoesFechadas = indicacoes.filter(i => 
                 i.status === 'Fechado' && 
                 i.valorComissao && 
@@ -920,9 +922,9 @@
                 i.prazoComissao > 0
             );
 
-            // Aplicar filtro por empresa se especificado
+            // Aplicar filtro por parceiro se especificado
             if (empresaFiltro) {
-                indicacoesFechadas = indicacoesFechadas.filter(i => i.incorporadora === empresaFiltro);
+                indicacoesFechadas = indicacoesFechadas.filter(i => (i.usuarioNome || i.usuarioEmail) === empresaFiltro);
             }
 
             if (indicacoesFechadas.length === 0) {
@@ -937,7 +939,7 @@
                         <h4 style="margin: 0 0 10px 0; font-size: 16px;">${mensagem}</h4>
                         <p style="margin: 0; font-size: 14px; text-align: center;">
                             ${empresaFiltro ? 
-                                'Selecione "Todas as empresas" ou outra empresa<br>para ver outras projeções.' :
+                                'Selecione "Todos os parceiros" ou outro parceiro<br>para ver outras projeções.' :
                                 'Feche indicações com valor e prazo de comissão<br>para ver a projeção de recebimentos aqui.'
                             }
                         </p>
@@ -968,7 +970,7 @@
                     
                     projecoes[chaveData].total += valorMensal;
                     projecoes[chaveData].detalhes.push({
-                        empresa: indicacao.incorporadora,
+                        parceiro: (indicacao.usuarioNome || indicacao.usuarioEmail),
                         valor: valorMensal,
                         mes: pagos + offset,
                         totalMeses: total
@@ -989,7 +991,7 @@
             const tooltips = datasOrdenadas.map(data => {
                 const detalhes = projecoes[data].detalhes;
                 const resumo = detalhes.map(d => 
-                    `${d.empresa}: R$ ${d.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${d.mes}/${d.totalMeses})`
+                    `${d.parceiro}: R$ ${d.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${d.mes}/${d.totalMeses})`
                 ).join('<br>');
                 return `<b>Total: R$ ${projecoes[data].total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b><br>${resumo}`;
             });
@@ -1044,6 +1046,141 @@
             };
 
             Plotly.newPlot('projecaoComissoesChart', data, layout, {responsive: true, displayModeBar: false});
+        }
+
+        // Utilitário: carregar scripts sob demanda para não impactar performance inicial
+        const __loadedScripts = new Set();
+        function loadScriptOnce(src){
+            return new Promise((resolve, reject) => {
+                if(__loadedScripts.has(src)) return resolve();
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => { __loadedScripts.add(src); resolve(); };
+                s.onerror = () => reject(new Error('Falha ao carregar: '+src));
+                document.head.appendChild(s);
+            });
+        }
+
+        // Exportar relatório em PDF (visão geral + detalhado por parceiro), carregando libs apenas no clique
+        async function gerarRelatorioPDF(){
+            try{
+                const btn = document.getElementById('btnExportarPDF');
+                if(btn){ btn.disabled = true; btn.style.opacity = '0.8'; btn.querySelector('.btn-label').textContent = 'Gerando…'; }
+
+                // Lazy-load jsPDF UMD e autotable
+                await loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+                await loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.min.js');
+                const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+                if(!jsPDF || !(new jsPDF()).autoTable){
+                    alert('Biblioteca de PDF não carregada. Tente novamente.');
+                    if(btn){ btn.disabled = false; btn.style.opacity = '1'; btn.querySelector('.btn-label').textContent = 'Exportar PDF'; }
+                    return;
+                }
+
+                // Dados: reaproveitar cache se existir
+                let indicacoes = [];
+                if(typeof getIndicacoes === 'function'){ indicacoes = await getIndicacoes(); }
+                else {
+                    const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
+                    const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
+                    const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
+                    const res = await fetch(`${API}/indicacoes${query}`);
+                    indicacoes = await res.json();
+                }
+
+                const empresaFiltro = document.getElementById('filtroEmpresaProjecao').value || '';
+                let fechadas = indicacoes.filter(i => i.status==='Fechado' && i.valorComissao && i.prazoComissao && i.valorComissao>0 && i.prazoComissao>0);
+                if(empresaFiltro){ fechadas = fechadas.filter(i => (i.usuarioNome||i.usuarioEmail)===empresaFiltro); }
+                if(fechadas.length===0){ alert('Não há dados para gerar o relatório.'); if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.querySelector('.btn-label').textContent='Exportar PDF'; } return; }
+
+                const hoje = new Date();
+                const projecoes = {}; // chave AAAA-MM -> total
+                // parceiro -> { nome: string, clientes: Map(cliente -> {mesKey: valor}), meses: {mesKey: valor} }
+                const porParceiro = new Map();
+                fechadas.forEach(i => {
+                    const parceiro = (i.usuarioNome||i.usuarioEmail);
+                    const valorMensal = parseFloat(i.valorComissao);
+                    const pagos = (i.pagamentos||[]).length;
+                    const total = parseInt(i.prazoComissao);
+                    const restantes = Math.max(0, total - (pagos||0));
+                    const cliente = String(i.incorporadora||i.contatoNome||'');
+                    if(!porParceiro.has(parceiro)) porParceiro.set(parceiro, { nome: (i.usuarioNome||''), clientes: new Map(), meses: {} });
+                    const infoP = porParceiro.get(parceiro);
+                    if(!infoP.clientes.has(cliente)) infoP.clientes.set(cliente, {});
+                    const mesesCliente = infoP.clientes.get(cliente);
+                    for(let k=1;k<=restantes;k++){
+                        const d = new Date(hoje.getFullYear(), hoje.getMonth()+k, 1);
+                        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                        projecoes[key] = (projecoes[key]||0) + valorMensal;
+                        infoP.meses[key] = (infoP.meses[key]||0) + valorMensal;
+                        mesesCliente[key] = (mesesCliente[key]||0) + valorMensal;
+                    }
+                });
+
+                const keys = Object.keys(projecoes).sort();
+                const rotulos = keys.map(k=>{ const [ano,mes]=k.split('-'); const nomes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; return `${nomes[parseInt(mes)-1]}/${ano}`; });
+
+                const doc = new jsPDF({ unit:'pt', format:'a4' });
+                doc.setFontSize(16); doc.text('Relatório de Projeção de Comissões', 40, 40);
+                doc.setFontSize(10); doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 40, 58);
+                if(empresaFiltro){ doc.text(`Parceiro selecionado: ${empresaFiltro}`, 40, 72); }
+
+                // Visão geral (cores diferenciadas)
+                const headOverview = ['Mês'].concat(rotulos);
+                const rowOverview = ['Total'].concat(keys.map(k=>`R$ ${projecoes[k].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`));
+                doc.autoTable({
+                    head:[headOverview],
+                    body:[rowOverview],
+                    startY: 92,
+                    styles:{ fontSize:9 },
+                    headStyles:{ fillColor:[37,99,235], textColor:255 }
+                });
+
+                let y = doc.lastAutoTable.finalY + 26; // mais espaço após visão geral
+                doc.setFontSize(12); doc.text('Detalhado por Parceiro', 40, y); y += 16;
+                const parceirosOrdenados = Array.from(porParceiro.keys()).sort();
+                for(const parceiroKey of parceirosOrdenados){
+                    const info = porParceiro.get(parceiroKey);
+                    const clientesMap = info.clientes; // Map(cliente -> meses)
+                    const clientes = Array.from(clientesMap.keys()).filter(Boolean);
+                    const nomeParceiro = info.nome || parceiroKey;
+                    doc.setFontSize(11); doc.text(`Parceiro: ${nomeParceiro}`, 40, y); y += 14;
+                    doc.setFontSize(9);
+                    if(clientes.length){ doc.text(`Clientes fechados: ${clientes.join(', ')}`, 40, y); y += 8; }
+
+                    // Cabeçalho: Cliente + meses
+                    const head = ['Cliente'].concat(rotulos);
+                    const bodyRows = [];
+                    if(clientes.length >= 2){
+                        // Uma linha por cliente (>=2), depois linha Total
+                        for(const cliente of clientes){
+                            const meses = clientesMap.get(cliente) || {};
+                            const row = [cliente].concat(keys.map(k=>{ const v=(meses[k]||0); return v?`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`:''; }));
+                            bodyRows.push(row);
+                        }
+                        const totalRow = ['Total'].concat(keys.map(k=>{ const v=(info.meses[k]||0); return v?`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`:''; }));
+                        bodyRows.push(totalRow);
+                    } else {
+                        // Só uma linha agregada
+                        const row = ['Valores'].concat(keys.map(k=>{ const v=(info.meses[k]||0); return v?`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`:''; }));
+                        bodyRows.push(row);
+                    }
+
+                    doc.autoTable({
+                        head:[head],
+                        body: bodyRows,
+                        startY: y+6,
+                        styles:{ fontSize:8 },
+                        headStyles:{ fillColor:[13,148,136], textColor:255 }
+                    });
+                    y = doc.lastAutoTable.finalY + 24; // mais espaço entre parceiros
+                    if(y > doc.internal.pageSize.getHeight()-80){ doc.addPage(); y = 40; }
+                }
+
+                doc.save('projecao-comissoes.pdf');
+                if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.querySelector('.btn-label').textContent='Exportar PDF'; }
+            }catch(err){ console.error(err); alert('Não foi possível gerar o PDF.'); const btn=document.getElementById('btnExportarPDF'); if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.querySelector('.btn-label').textContent='Exportar PDF'; } }
         }
     </script>
     <script src="js/auth.js"></script>

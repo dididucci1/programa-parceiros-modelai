@@ -5,6 +5,12 @@
     { "src": "images/**", "use": "@vercel/static" },
     { "src": "js/**", "use": "@vercel/static" }
   ],
+  "rewrites": [
+    {
+      "source": "/parceiros/:path*",
+      "destination": "https://parceirosmodelai.vercel.app/:path*"
+    }
+  ],
   "routes": [
     { "src": "/(.*)", "dest": "/$1" }
   ]

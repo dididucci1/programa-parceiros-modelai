@@ -688,14 +688,26 @@
             <div style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2 style="font-size: 24px; font-weight: 700; color: #1a202c; margin: 0;">Suas Indicações</h2>
-                    <select id="filtroStatus" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #4a5568; font-size: 14px; min-width: 180px;">
-                        <option value="">Todos os status</option>
-                        <option value="Em Andamento">Em Andamento</option>
-                        <option value="Reunião Agendada">Reunião Agendada</option>
-                        <option value="Reunião Realizada">Reunião Realizada</option>
-                        <option value="Fechado">Fechado</option>
-                        <option value="Cancelado/Sem resposta">Cancelado/Sem resposta</option>
-                    </select>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <select id="filtroStatus" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #4a5568; font-size: 14px; min-width: 180px;">
+                            <option value="">Todos os status</option>
+                            <option value="Novo">Novo</option>
+                            <option value="Em Análise">Em Análise</option>
+                            <option value="Em Andamento">Em Andamento</option>
+                            <option value="Reunião Agendada">Reunião Agendada</option>
+                            <option value="Reunião Realizada">Reunião Realizada</option>
+                            <option value="Fechado">Fechado</option>
+                            <option value="Cancelado/Sem resposta">Cancelado/Sem resposta</option>
+                            <option value="Lead Já Cadastrado">Lead Já Cadastrado</option>
+                        </select>
+                        <!-- Filtro de Parceiro (visível apenas para administradores) -->
+                        <select id="filtroParceiro" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; color: #4a5568; font-size: 14px; min-width: 220px; display:none;">
+                            <option value="">Todos os parceiros</option>
+                        </select>
+                        <button id="btnVerOcultos" onclick="toggleMostrarOcultos()" style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #3b82f6; color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-eye"></i> Ver Ocultos
+                        </button>
+                    </div>
                 </div>
                 <div id="indicacoesContainer">
                     <!-- Indicações serão carregadas aqui via JavaScript -->
@@ -711,11 +723,14 @@
             <div class="form-group">
                 <label for="novoStatus">Novo Status:</label>
                 <select id="novoStatus" class="form-select" onchange="toggleCamposComissao()">
+                    <option value="Novo">Novo</option>
+                    <option value="Em Análise">Em Análise</option>
                     <option value="Cancelado/Sem resposta">Cancelado/Sem resposta</option>
                     <option value="Em Andamento">Em Andamento</option>
                     <option value="Reunião Agendada">Reunião Agendada</option>
                     <option value="Reunião Realizada">Reunião Realizada</option>
                     <option value="Fechado">Fechado</option>
+                    <option value="Lead Já Cadastrado">Lead Já Cadastrado</option>
                 </select>
             </div>
             <div id="comissaoField" class="form-group" style="display: none;">
@@ -744,6 +759,7 @@
     <script>
         const API = window.API_BASE || '/api';
         let editandoId = null;
+        let mostrarOcultos = false;
 
         // Sidebar toggle functionality (desktop collapse, mobile off-canvas)
         function ensureSidebarOverlay(){
@@ -792,7 +808,26 @@
         document.addEventListener('DOMContentLoaded', function() {
             carregarIndicacoes();
             configurarFiltroStatus();
+            configurarFiltroParceiro();
         });
+
+        function toggleMostrarOcultos(){
+            mostrarOcultos = !mostrarOcultos;
+            const btn = document.getElementById('btnVerOcultos');
+            if(btn){
+                if(mostrarOcultos){
+                    btn.style.background = '#f59e0b';
+                    btn.style.color = '#1f2937';
+                    btn.innerHTML = '<i class="fas fa-eye-slash"></i> Voltar';
+                } else {
+                    btn.style.background = '#3b82f6';
+                    btn.style.color = 'white';
+                    btn.innerHTML = '<i class="fas fa-eye"></i> Ver Ocultos';
+                }
+            }
+            const filtro = document.getElementById('filtroStatus');
+            carregarIndicacoes(filtro ? filtro.value : '');
+        }
 
         // Configurar filtro de status
         function configurarFiltroStatus() {
@@ -808,11 +843,45 @@
             });
         }
 
+        // Configurar filtro de parceiro (apenas para admin)
+        async function configurarFiltroParceiro() {
+            try {
+                const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
+                const sel = document.getElementById('filtroParceiro');
+                if (!isAdmin || !sel) return; // Somente admins veem o filtro
+
+                // Buscar usuários para popular o filtro
+                const res = await fetch(`${API}/usuarios`, { headers: { 'Authorization': (window.Auth && Auth.getToken && `Bearer ${Auth.getToken()}`) || '' } });
+                if (!res.ok) { sel.style.display = 'none'; return; }
+                const usuarios = await res.json();
+                // Considerar apenas parceiros
+                const parceiros = (usuarios || []).filter(u => String(u.role||'').toLowerCase() === 'parceiro');
+                // Popular opções: nome (email)
+                parceiros.sort((a,b) => String(a.nome||a.email||'').localeCompare(String(b.nome||b.email||'')));
+                parceiros.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = String(u.email||'').toLowerCase();
+                    // Mostrar apenas o nome; se não houver, usar email como fallback
+                    opt.textContent = (u.nome && u.nome.trim()) ? u.nome : (u.email || '');
+                    sel.appendChild(opt);
+                });
+                sel.style.display = 'block';
+                sel.addEventListener('change', function(){
+                    const filtro = document.getElementById('filtroStatus');
+                    carregarIndicacoes(filtro ? filtro.value : '');
+                });
+            } catch (err) {
+                const sel = document.getElementById('filtroParceiro');
+                if (sel) sel.style.display = 'none';
+            }
+        }
+
         // Função para obter a classe do status
         function getStatusClass(status) {
             switch(status) {
                 case 'Novo':
                     return 'novo';
+                case 'Em Análise':
                 case 'Em Andamento':
                 case 'Reunião Agendada':
                 case 'Reunião Realizada':
@@ -820,6 +889,7 @@
                 case 'Fechado':
                     return 'fechado';
                 case 'Cancelado/Sem resposta':
+                case 'Lead Já Cadastrado':
                     return 'vencido';
                 default:
                     return 'novo';
@@ -841,7 +911,13 @@
         async function carregarIndicacoes(filtroStatus = '') {
             const user = (window.Auth && Auth.getCurrentUser && Auth.getCurrentUser()) || { role:'admin' };
             const isAdmin = (window.Auth && Auth.isAdmin && Auth.isAdmin());
-            const query = isAdmin ? '' : `?userEmail=${encodeURIComponent(user.email||'')}`;
+            // Se admin e filtro de parceiro selecionado, aplicar no query
+            let query = '';
+            if (isAdmin) {
+                const selParceiro = document.getElementById('filtroParceiro');
+                const parceiroEmail = selParceiro ? selParceiro.value : '';
+                if (parceiroEmail) query = `?userEmail=${encodeURIComponent(parceiroEmail)}`;
+            }
             const res = await fetch(`${API}/indicacoes${query}`);
             const todasIndicacoes = await res.json();
             
@@ -852,10 +928,15 @@
             
             const container = document.getElementById('indicacoesContainer');
             
+            // Aplicar filtro de ocultas primeiro
+            let base = mostrarOcultos ?
+                (todasIndicacoes || []).filter(i => i && i.oculta === true) :
+                (todasIndicacoes || []).filter(i => i && i.oculta !== true);
+
             // Aplicar filtro de status se especificado
-            let indicacoes = todasIndicacoes;
+            let indicacoes = base;
             if (filtroStatus) {
-                indicacoes = todasIndicacoes.filter(indicacao => {
+                indicacoes = base.filter(indicacao => {
                     return indicacao.status === filtroStatus;
                 });
             }
@@ -896,18 +977,20 @@
                                 <h3 class="lead-title" style="margin:0;">${indicacao.incorporadora}</h3>
                                 <div class="lead-actions">
                                     <span class="status-badge ${isVencida ? 'vencido' : getStatusClass(indicacao.status)}">${isVencida ? 'VENCIDO' : indicacao.status.toUpperCase()}</span>
-                                    ${ (window.Auth && Auth.isAdmin && Auth.isAdmin()) ? `
+                                    ${ (()=>{ const u=(window.Auth&&Auth.getCurrentUser&&Auth.getCurrentUser())||{}; const isAdm=(window.Auth&&Auth.isAdmin&&Auth.isAdmin()); const isOwner=String(indicacao.usuarioEmail||'').toLowerCase()===String(u.email||'').toLowerCase(); return (isAdm||isOwner) ? `
                                     <div class=\"dropdown\" id=\"menu-${indicacao._id}\">
                                         <button class=\"icon-btn\" title=\"Mais opções\" onclick=\"toggleCardMenu('${indicacao._id}')\"><i class=\"fas fa-ellipsis-vertical\"></i></button>
                                         <div class=\"dropdown-menu\">
-                                            <div class=\"dropdown-item\" onclick=\"editarStatus('${indicacao._id}')\"><i class=\"fas fa-edit\"></i> Editar</div>
-                                            <div class=\"dropdown-item\" onclick=\"excluirIndicacao('${indicacao._id}')\"><i class=\"fas fa-trash\"></i> Excluir</div>
+                                            ${isAdm ? `<div class=\"dropdown-item\" onclick=\"editarStatus('${indicacao._id}')\"><i class=\"fas fa-edit\"></i> Editar</div>` : ''}
+                                            <div class=\"dropdown-item\" onclick=\"toggleOcultarIndicacao('${indicacao._id}', ${indicacao.oculta || false})\"><i class=\"fas fa-eye-slash\"></i> ${indicacao.oculta ? 'Reativar' : 'Ocultar'}</div>
+                                            ${isAdm ? `<div class=\"dropdown-item\" onclick=\"excluirIndicacao('${indicacao._id}')\"><i class=\"fas fa-trash\"></i> Excluir</div>` : ''}
                                         </div>
-                                    </div>` : '' }
+                                    </div>` : '' })() }
                                 </div>
                             </div>
                             <p class="lead-client">Cliente: ${indicacao.contatoNome}</p>
                             ${indicacao.cargoRepresentante ? `<p class="lead-client" style="font-size: 0.85em; color: #6b7280;">Cargo: ${indicacao.cargoRepresentante}</p>` : ''}
+                            ${ (indicacao.usuarioNome || indicacao.usuarioEmail) ? `<p class="lead-client" style="font-size: 0.85em; color: #8b5cf6; font-weight: 500;"><i class="fas fa-user-tie"></i> Parceiro: ${indicacao.usuarioNome || indicacao.usuarioEmail}</p>` : ''}
                         </div>
                     </div>
                     
@@ -973,7 +1056,7 @@
         function atualizarEstatisticas(indicacoes) {
             const total = indicacoes.length;
             const fechadas = indicacoes.filter(i => i.status === 'Fechado').length;
-            const andamento = indicacoes.filter(i => ['Em Andamento','Reunião Agendada','Reunião Realizada'].includes(i.status)).length;
+            const andamento = indicacoes.filter(i => ['Em Análise','Em Andamento','Reunião Agendada','Reunião Realizada'].includes(i.status)).length;
             
             // Calcular vencidas (data de vencimento já passou e status não é "Fechado")
             const hoje = new Date();
@@ -1023,6 +1106,24 @@
                 document.getElementById('prazoComissao').value = indicacao.prazoComissao || '';
                 toggleCamposComissao();
                 document.getElementById('statusModal').style.display = 'block';
+            }
+        }
+
+        // Função para ocultar/reativar uma indicação
+        async function toggleOcultarIndicacao(id, isOculta){
+            if (!(window.Auth && Auth.isAdmin && Auth.isAdmin())) { alert('Somente administradores podem ocultar indicações.'); return; }
+            const acao = isOculta ? 'reativar' : 'ocultar';
+            if(!confirm(`Tem certeza que deseja ${acao} esta indicação?`)) return;
+            try{
+                await fetch(`${API}/indicacoes/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oculta: !isOculta })
+                });
+                const filtro = document.getElementById('filtroStatus');
+                await carregarIndicacoes(filtro ? filtro.value : '');
+            } catch(err){
+                alert('Erro ao atualizar indicação');
             }
         }
 
